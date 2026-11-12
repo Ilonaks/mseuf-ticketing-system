@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
+use Database\Factories\TicketFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 #[Fillable([
     'user_id',
@@ -15,6 +18,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class Ticket extends Model
 {
+    /** @use HasFactory<TicketFactory> */
+    use HasFactory;
+
     protected function casts(): array
     {
         return [
@@ -32,5 +38,15 @@ class Ticket extends Model
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
+    }
+
+    // Generates a unique code like MSEUF-A8K2PX9Q
+    public static function generateCode(): string
+    {
+        do {
+            $code = 'MSEUF-'.strtoupper(Str::random(8));
+        } while (static::where('ticket_code', $code)->exists());
+
+        return $code;
     }
 }

@@ -39,4 +39,17 @@ class EventPolicy
     {
         return $this->update($user, $event);
     }
+
+    // Attendee lists: admins for any event, organizers for their own
+    public function viewAttendees(User $user, Event $event): bool
+    {
+        return $this->update($user, $event);
+    }
+
+    // Checking in tickets at the entrance: only the account that created the event
+    // (organizer or admin). Other admins can still view and edit it, but not run its gate.
+    public function checkIn(User $user, Event $event): bool
+    {
+        return $event->user_id === $user->id && ($user->isOrganizer() || $user->isAdmin());
+    }
 }

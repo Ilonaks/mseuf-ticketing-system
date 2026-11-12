@@ -13,7 +13,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 #[Fillable(['name', 'email', 'password', 'role', 'student_id'])]
-#[Hidden(['password', 'remember_token'])]
+#[Hidden(['password', 'remember_token', 'current_token_id'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -37,6 +37,12 @@ class User extends Authenticatable
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);
+    }
+
+    // Sold-out events this student is waiting for
+    public function waitlistEntries(): HasMany
+    {
+        return $this->hasMany(WaitlistEntry::class);
     }
 
     // Role helpers

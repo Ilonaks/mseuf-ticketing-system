@@ -1,147 +1,140 @@
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { errorMessage } from "../format";
+import { serverFieldErrors, validateLogin } from "../validation";
+import { COLORS, common } from "../styles";
+import AuthLayout from "./AuthLayout";
 
-export default function LoginScreen({ onLogin }) {
+// Seeded test accounts (see README); handy for demos
+const DEMO_ACCOUNTS = [
+  { label: "Student", email: "juan@mseuf.edu.ph" },
+  { label: "Organizer", email: "organizer@mseuf.edu.ph" },
+  { label: "Admin", email: "admin@mseuf.edu.ph" },
+];
+
+export default function LoginScreen({ onLogin, onShowRegister }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
-    if (!email || !password) {
-      setError("Please enter your email and password.");
-      return;
-    }
-
     setError("");
-    setSubmitting(true);
+    const found = validateLogin({ email, password });
+    setFieldErrors(found);
+    if (Object.keys(found).length) return;
 
+    setSubmitting(true);
     try {
       await onLogin(email.trim(), password);
     } catch (err) {
-      if (err.response) {
-        setError(err.response.data?.message || "Login failed.");
+      if (err.response?.status === 429) {
+        setError("Too many login attempts. Please wait a minute and try again.");
       } else {
-        setError("Cannot reach the server. Check your Wi-Fi and API URL.");
+        // Wrong email/password comes back as an error on "email"
+        setError(serverFieldErrors(err)?.email || errorMessage(err, "Login failed."));
       }
     } finally {
       setSubmitting(false);
     }
   };
 
+  const fillDemo = (account) => {
+    setEmail(account.email);
+    setPassword("password123");
+    setError("");
+    setFieldErrors({});
+  };
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <View style={styles.card}>
-        <Text style={styles.title}>MSEUF Events</Text>
-        <Text style={styles.subtitle}>Log in to view events and get tickets</Text>
+    <AuthLayout title="Welcome back" subtitle="Log in to view events and get tickets.">
+      {error ? <Text style={[common.error, { marginTop: 10 }]}>{error}</Text> : null}
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+      <Text style={common.label}>Email</Text>
+      <TextInput
+        style={[common.input, fieldErrors.email && common.inputInvalid]}
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        autoComplete="email"
+        keyboardType="email-address"
+        placeholder="you@mseuf.edu.ph"
+        placeholderTextColor={COLORS.muted}
+      />
+      {fieldErrors.email ? <Text style={common.fieldError}>{fieldErrors.email}</Text> : null}
 
-        <Text style={styles.label}>Email</Text>
+      <Text style={common.label}>Password</Text>
+      <View style={styles.passwordRow}>
         <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          placeholder="you@mseuf.edu.ph"
-        />
-
-        <Text style={styles.label}>Password</Text>
-        <TextInput
-          style={styles.input}
+          style={[common.input, { flex: 1, paddingRight: 70 }, fieldErrors.password && common.inputInvalid]}
           value={password}
           onChangeText={setPassword}
-          secureTextEntry
-          placeholder="Password"
+          secureTextEntry={!showPassword}
+          placeholder="Your password"
+          placeholderTextColor={COLORS.muted}
+          onSubmitEditing={handleSubmit}
         />
-
-        <Pressable
-          style={[styles.button, submitting && styles.buttonDisabled]}
-          onPress={handleSubmit}
-          disabled={submitting}
-        >
-          {submitting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Log in</Text>
-          )}
+        <Pressable style={styles.toggle} onPress={() => setShowPassword((s) => !s)}>
+          <Text style={common.link}>{showPassword ? "Hide" : "Show"}</Text>
         </Pressable>
       </View>
-    </KeyboardAvoidingView>
+      {fieldErrors.password ? <Text style={common.fieldError}>{fieldErrors.password}</Text> : null}
+
+      <Pressable
+        style={[common.button, { marginTop: 24 }, submitting && common.buttonDisabled]}
+        onPress={handleSubmit}
+        disabled={submitting}
+      >
+        {submitting ? <ActivityIndicator color="#fff" /> : <Text style={common.buttonText}>Log in</Text>}
+      </Pressable>
+
+      <View style={styles.demo}>
+        <Text style={common.muted}>Try a demo account</Text>
+        <View style={styles.demoRow}>
+          {DEMO_ACCOUNTS.map((a) => (
+            <Pressable key={a.label} style={common.chip} onPress={() => fillDemo(a)}>
+              <Text style={common.chipText}>{a.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
+      <Pressable onPress={onShowRegister} style={styles.switchLink}>
+        <Text style={{ color: COLORS.text }}>
+          No account yet? <Text style={common.link}>Create one</Text>
+        </Text>
+      </Pressable>
+    </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    padding: 20,
-    backgroundColor: "#f4f1f1",
-  },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 24,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: "#7a1f2b",
-  },
-  subtitle: {
-    color: "#777",
-    marginTop: 4,
-    marginBottom: 16,
-  },
-  label: {
-    fontWeight: "600",
-    marginTop: 10,
-    marginBottom: 4,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-  },
-  button: {
-    backgroundColor: "#7a1f2b",
-    borderRadius: 8,
-    padding: 14,
+  passwordRow: {
+    flexDirection: "row",
     alignItems: "center",
-    marginTop: 20,
   },
-  buttonDisabled: {
-    opacity: 0.6,
+  toggle: {
+    position: "absolute",
+    right: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 16,
+  demo: {
+    marginTop: 24,
+    paddingTop: 18,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
   },
-  error: {
-    backgroundColor: "#fde8e8",
-    color: "#b42318",
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 8,
+  demoRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 10,
+  },
+  switchLink: {
+    marginTop: 22,
+    alignItems: "center",
   },
 });
